@@ -3,7 +3,8 @@
     android:layout_width="fill_parent"
     android:layout_height="fill_parent"
     android:orientation="vertical"
-    android:padding="16dp" >
+    android:padding="16dp" 
+    android:id="@+id/main_lay" >
 
     <TextView
         android:id="@+id/caption_text"
@@ -27,9 +28,16 @@
     </LinearLayout>
     
     <FrameLayout
-        android:id="@+id/camera_preview"
+        android:id="@+id/preview"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
-        android:layout_weight="1" />
+        android:layout_weight="1" > 
+    
+          <SurfaceView
+            android:id="@+id/surfaceView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" />
+           
+    </FrameLayout>
     
 </LinearLayout>
