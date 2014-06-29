@@ -154,7 +154,7 @@ public class MainActivity extends Activity implements RecognitionListener {
 			});
 			
 			try {
-				Thread.sleep(4000);
+				Thread.sleep(1000);
 			} catch (InterruptedException e) {
 			}
 	// /
@@ -307,11 +307,6 @@ public class MainActivity extends Activity implements RecognitionListener {
 					outStream.close();
 				}
 			
-				try {
-					Thread.sleep(2000);
-				} catch (InterruptedException e) {
-				}
-				
 				Log.d(TAG, "onPictureTaken - wrote bytes: " + data.length);
 			
 				try {
