@@ -15,8 +15,14 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 
+import com.google.android.gms.ads.AdRequest;
+import com.google.android.gms.ads.AdView;
+
+
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -26,11 +32,17 @@ import android.hardware.Camera.Parameters;
 import android.hardware.Camera.PictureCallback;
 import android.hardware.Camera.ShutterCallback;
 import android.media.ExifInterface;
+import android.media.MediaScannerConnection;
+import android.media.MediaScannerConnection.MediaScannerConnectionClient;
+import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
 import android.speech.RecognitionService;
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.Surface;
 import android.view.SurfaceView;
 import android.view.View;
@@ -46,8 +58,14 @@ import edu.cmu.pocketsphinx.Hypothesis;
 import edu.cmu.pocketsphinx.RecognitionListener;
 import edu.cmu.pocketsphinx.SpeechRecognizer;
 
-public class MainActivity extends Activity implements RecognitionListener {
+public class MainActivity extends Activity implements RecognitionListener , MediaScannerConnectionClient{
 	private Camera mCamera;
+	
+    public String[] allFiles;
+    private String SCAN_PATH ;
+    private static final String FILE_TYPE = "*/*";
+    private MediaScannerConnection conn;
+    
 	// private CameraPreview mCameraPreview;
 	private static final String KWS_SEARCH = "wakeup";
 	private static final String FORECAST_SEARCH = "forecast";
@@ -82,6 +100,15 @@ public class MainActivity extends Activity implements RecognitionListener {
 
 		L1 = (LinearLayout) findViewById(R.id.main_lay);
 		makeText(getApplicationContext(), "Loading .. Please wait .. ", Toast.LENGTH_LONG).show();
+		
+		File folder = new File(Environment.getExternalStorageDirectory() + "/CheesyCam");
+        allFiles = folder.list();
+        SCAN_PATH=Environment.getExternalStorageDirectory().toString()+"/CheesyCam/"+allFiles[0];
+
+//		  AdView adView = (AdView) this.findViewById(R.id.adView);
+//		    AdRequest adRequest = new AdRequest.Builder().build();
+//		    adView.loadAd(adRequest);
+        
 		// mCamera = getCameraInstance();
 		/*
 		 * mCameraPreview = new CameraPreview(this, mCamera); FrameLayout
@@ -137,10 +164,89 @@ public class MainActivity extends Activity implements RecognitionListener {
 	}
 
 	@Override
+	public boolean onOptionsItemSelected(MenuItem item) {
+		// Handle item selection
+
+		switch (item.getItemId()) {
+		case R.id.menuitem_show: {
+
+			try {
+				dialogShowGalleryBuilder();
+				
+			} catch (Exception e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+
+			return true;
+		}
+		case R.id.menuitem_aboutus: {
+			dialogAboutBuilder();
+			return true;
+		}
+
+		case R.id.menuitem_rateus: {
+			rate();
+			return true;
+		}
+
+		default:
+			return super.onOptionsItemSelected(item);
+		}
+
+	}
+	
+	@Override
+	public boolean onCreateOptionsMenu(Menu menu) {
+		MenuInflater inflater = getMenuInflater();
+		inflater.inflate(R.menu.option_menu, menu);
+		return true;
+	}
+
+	public void dialogShowGalleryBuilder() {
+
+		AlertDialog.Builder myAlertDialog = new AlertDialog.Builder(this);
+		myAlertDialog.setTitle("Show Photos");
+		myAlertDialog
+				.setMessage("Captured images are saved at:\n\n /sdcard/CheesyCam/ folder\n\n Do you want to open the Gallery?");
+		myAlertDialog.setPositiveButton("OK",
+				new DialogInterface.OnClickListener() {
+
+					public void onClick(DialogInterface arg0, int arg1) {
+						finish();
+						startScan();
+					}
+				});
+		myAlertDialog.setNegativeButton("Cancel",
+				new DialogInterface.OnClickListener() {
+
+					public void onClick(DialogInterface arg0, int arg1) {
+						//do nothing!
+					}
+				});
+		myAlertDialog.show();
+	}
+	
+	public void dialogAboutBuilder() {
+		AlertDialog.Builder builder = new AlertDialog.Builder(this);
+		builder.setTitle("About");
+		builder.setMessage(getString(R.string.aboutus));
+		AlertDialog alert = builder.create();
+		alert.show();
+	}
+	
+	public void rate() {
+		Intent intent = new Intent(Intent.ACTION_VIEW);
+		intent.setData(Uri
+				.parse("market://details?id="));
+		startActivity(intent);
+	}
+	
+	@Override
 	public void onPartialResult(Hypothesis hypothesis) {
 		String text = hypothesis.getHypstr();
 		if (text.equals(KEYPHRASE)) {
-			// stopService(new Intent(this, RecognitionService.class));
+			 stopService(new Intent(this, RecognitionService.class));
 
 			Log.d("CAM", "Captured");
 			Log.d("CAM", "Captured at " + imagePath);
@@ -154,7 +260,7 @@ public class MainActivity extends Activity implements RecognitionListener {
 			});
 			
 			try {
-				Thread.sleep(1000);
+				Thread.sleep(2000);
 			} catch (InterruptedException e) {
 			}
 	// /
@@ -438,4 +544,40 @@ public class MainActivity extends Activity implements RecognitionListener {
 	        return null;
 	    }
 	}
+	
+	  private void startScan()
+	    {
+	        if(conn!=null)
+	        {
+	            conn.disconnect();
+	        }
+
+	        conn = new MediaScannerConnection(this, this);
+	        conn.connect();
+	    }
+
+
+	    public void onMediaScannerConnected()
+	    {
+	        conn.scanFile(SCAN_PATH, FILE_TYPE);    
+	    }
+
+
+	    public void onScanCompleted(String path, Uri uri)
+	    {
+	        try
+	        {
+	            if (uri != null) 
+	            {
+	                Intent intent = new Intent(Intent.ACTION_VIEW);
+	                intent.setData(uri);
+	                startActivity(intent);
+	            }
+	        }
+	        finally 
+	        {
+	            conn.disconnect();
+	            conn = null;
+	        }
+	    }
 }
