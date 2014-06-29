@@ -8,7 +8,9 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -17,10 +19,13 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Matrix;
 import android.hardware.Camera;
 import android.hardware.Camera.Parameters;
 import android.hardware.Camera.PictureCallback;
 import android.hardware.Camera.ShutterCallback;
+import android.media.ExifInterface;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
@@ -76,7 +81,7 @@ public class MainActivity extends Activity implements RecognitionListener {
 				.setText("Preparing the voice recognizer, Please wait a moment ..");
 
 		L1 = (LinearLayout) findViewById(R.id.main_lay);
-
+		makeText(getApplicationContext(), "Loading .. Please wait .. ", Toast.LENGTH_LONG).show();
 		// mCamera = getCameraInstance();
 		/*
 		 * mCameraPreview = new CameraPreview(this, mCamera); FrameLayout
@@ -140,8 +145,19 @@ public class MainActivity extends Activity implements RecognitionListener {
 			Log.d("CAM", "Captured");
 			Log.d("CAM", "Captured at " + imagePath);
 			mCamera.takePicture(shutterCallback, rawCallback, jpegCallback);
-
-			// /
+			
+			runOnUiThread(new Runnable() {
+			    @Override
+			    public void run() {
+			    	makeText(getBaseContext(), "Photo saving at :) " + fileName, Toast.LENGTH_LONG).show();
+			    }
+			});
+			
+			try {
+				Thread.sleep(4000);
+			} catch (InterruptedException e) {
+			}
+	// /
 			// View v1 = L1.getRootView();
 			// v1.setDrawingCacheEnabled(true);
 			// Bitmap bm = v1.getDrawingCache();
@@ -229,10 +245,12 @@ public class MainActivity extends Activity implements RecognitionListener {
 	protected void onResume() {
 		super.onResume();
 		// preview.camera = Camera.open();
-		mCamera = getCameraInstance();
-		mCamera.setDisplayOrientation(90);
-		mCamera.startPreview();
-		preview.setCamera(mCamera);
+		if (mCamera == null) {
+			mCamera = getCameraInstance();
+			mCamera.setDisplayOrientation(90);
+			mCamera.startPreview();
+			preview.setCamera(mCamera);
+		}
 	}
 
 	@Override
@@ -265,16 +283,42 @@ public class MainActivity extends Activity implements RecognitionListener {
 
 	PictureCallback jpegCallback = new PictureCallback() {
 		public void onPictureTaken(byte[] data, Camera camera) {
-			FileOutputStream outStream = null;
+			
 			try {
 				// Write to SD Card
-				fileName = String.format("/sdcard/camtest/%d.jpg",
-						System.currentTimeMillis());
-				outStream = new FileOutputStream(fileName);
-				outStream.write(data);
-				outStream.close();
-				Log.d(TAG, "onPictureTaken - wrote bytes: " + data.length);
+				File folder = new File(Environment.getExternalStorageDirectory() + "/CheesyCam");
+			    String path = folder.getPath();
 
+			    if(!folder.mkdirs() || !folder.exists()){        
+			            Log.e(TAG, path + " failed");
+			        } else {
+			            Log.d(TAG, path + " succeeded");
+			        } 
+			    
+				DateFormat dateFormat = new SimpleDateFormat("MM-dd-HH-mm-ss");
+				Calendar cal = Calendar.getInstance();
+				String nowTime = dateFormat.format(cal.getTime());
+				fileName = String.format(path + "/%s.jpg", "Che-" + nowTime);
+				
+				if (fileName!=null){
+					FileOutputStream outStream = null;
+					outStream = new FileOutputStream(fileName);
+					outStream.write(data);
+					outStream.close();
+				}
+			
+				try {
+					Thread.sleep(2000);
+				} catch (InterruptedException e) {
+				}
+				
+				Log.d(TAG, "onPictureTaken - wrote bytes: " + data.length);
+			
+				try {
+					decodeFile(fileName);
+				} catch (Exception e) {
+				}
+				
 				resetCam();
 
 			} catch (FileNotFoundException e) {
@@ -327,5 +371,76 @@ public class MainActivity extends Activity implements RecognitionListener {
 		}
 
 		return cam;
+	}
+	
+	@Override
+    public void onBackPressed() {
+        Intent startAc = new Intent(this, MainActivity.class);
+        this.startActivity(startAc);
+        finish();
+    }
+	
+	
+	public  Bitmap decodeFile(String path) {//you can provide file path here 
+	    int orientation;
+	    try {
+	        if (path == null) {
+	            return null;
+	        }
+	        // decode image size 
+	        BitmapFactory.Options o = new BitmapFactory.Options();
+	        o.inJustDecodeBounds = true;
+	        // Find the correct scale value. It should be the power of 2.
+	        final int REQUIRED_SIZE = 70;
+	        int width_tmp = o.outWidth, height_tmp = o.outHeight;
+	        int scale = 0;
+	        while (true) {
+	            if (width_tmp / 2 < REQUIRED_SIZE
+	                    || height_tmp / 2 < REQUIRED_SIZE)
+	                break;
+	            width_tmp /= 2;
+	            height_tmp /= 2;
+	        scale++;
+	        }
+	        // decode with inSampleSize
+	        BitmapFactory.Options o2 = new BitmapFactory.Options();
+	        o2.inSampleSize = scale;
+	        Bitmap bm = BitmapFactory.decodeFile(path, o2);
+	        Bitmap bitmap = bm;
+
+	        ExifInterface exif = new ExifInterface(path);
+
+	        orientation = exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, 1);
+
+	        Log.e("ExifInteface .........", "rotation ="+orientation);
+
+	        //exif.setAttribute(ExifInterface.ORIENTATION_ROTATE_90, 90);
+
+	        Log.e("orientation", "" + orientation);
+	        Matrix m = new Matrix();
+
+	        if ((orientation == ExifInterface.ORIENTATION_ROTATE_180)) {
+	            m.postRotate(180);
+	            //m.postScale((float) bm.getWidth(), (float) bm.getHeight());
+	            // if(m.preRotate(90)){
+	            Log.e("in orientation", "" + orientation);
+	            bitmap = Bitmap.createBitmap(bm, 0, 0, bm.getWidth(),bm.getHeight(), m, true);
+	            return bitmap;
+	        } else if (orientation == ExifInterface.ORIENTATION_ROTATE_90) {
+	            m.postRotate(90); 
+	            Log.e("in orientation", "" + orientation);
+	            bitmap = Bitmap.createBitmap(bm, 0, 0, bm.getWidth(),bm.getHeight(), m, true);
+	            return bitmap;
+	        }
+	        else if (orientation == ExifInterface.ORIENTATION_ROTATE_270) {
+	            m.postRotate(270);
+	            Log.e("in orientation", "" + orientation);
+	            bitmap = Bitmap.createBitmap(bm, 0, 0, bm.getWidth(),bm.getHeight(), m, true);
+	            return bitmap;
+	        } 
+	        return bitmap;
+	    } catch (Exception e) {
+	        return null;
+	    }
 	}
 }
