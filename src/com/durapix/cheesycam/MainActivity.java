@@ -22,6 +22,7 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.speech.RecognitionService;
 import android.util.Log;
+import android.view.Surface;
 import android.widget.FrameLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -93,6 +94,27 @@ public class MainActivity extends Activity implements
         }.execute();
     }
 
+/*	private Camera tryOpenFrontFacingCameraElseBackCamOpen() {
+	    int cameraCount = 0;
+	    Camera cam = null;
+	    Camera.CameraInfo cameraInfo = new Camera.CameraInfo();
+	    cameraCount = Camera.getNumberOfCameras();
+	    for (int camIdx = 0; camIdx < cameraCount; camIdx++) {
+	        Camera.getCameraInfo(camIdx, cameraInfo);
+	        if (cameraInfo.facing == Camera.CameraInfo.CAMERA_FACING_FRONT) {
+	            try {
+	                cam = Camera.open(camIdx);
+	                return cam;
+	            } catch (RuntimeException e) {
+	                 e.getLocalizedMessage();
+	            }
+	        }
+	    }
+	    
+
+	    return cam;
+	}
+	*/
     @Override
     public void onPartialResult(Hypothesis hypothesis) {
         String text = hypothesis.getHypstr();
@@ -187,17 +209,59 @@ public class MainActivity extends Activity implements
     @Override
     public void onDestroy()
     {
+
+if(mCamera!=null){
+	mCamera.stopPreview();
+	mCamera.setPreviewCallback(null);
+
+	mCamera.release();
+	mCamera = null;
+        }
+
+
         super.onDestroy();
     }
     
 	private Camera getCameraInstance() {
-		Camera camera = null;
+		
+		Camera cam = null;
+		int cameraCount = 0;
+		  
 		try {
-			camera = Camera.open();
+			// try opening the front cam if exists!
+		  
+		    Camera.CameraInfo cameraInfo = new Camera.CameraInfo();
+		    cameraCount = Camera.getNumberOfCameras();
+		    for (int camIdx = 0; camIdx < cameraCount; camIdx++) {
+		        Camera.getCameraInfo(camIdx, cameraInfo);
+		        if (cameraInfo.facing == Camera.CameraInfo.CAMERA_FACING_FRONT) {
+		            try {
+		                cam = Camera.open(camIdx);
+		                CameraPreview.camId= camIdx;
+//		                setCameraDisplayOrientation(this, camIdx, cam);
+		                return cam;
+		            } catch (RuntimeException e) {
+		                 e.getLocalizedMessage();
+		            }
+		        }
+		    }
+		    
+		   cam = Camera.open();
+		   int now=0 ;
+		   cameraCount = Camera.getNumberOfCameras();
+		    for (int camIdx = 0; camIdx < cameraCount; camIdx++) {
+		        now = camIdx;
+		    }
+		    
+		    CameraPreview.camId= now;
+
+//		   setCameraDisplayOrientation(this, cameraCount, cam);
+
 		} catch (Exception e) {
-			// cannot get camera or does not exist
+			e.printStackTrace();
 		}
-		return camera;
+		
+		return cam;
 	}
 
 	PictureCallback mPicture = new PictureCallback() {
@@ -260,4 +324,6 @@ public class MainActivity extends Activity implements
 //		}
 //		super.onPause();
 //	}
+	
+
 }
